@@ -190,49 +190,51 @@
 
         // Фильтрация рецептов
         function getFilteredRecipes() {
-            const list = (typeof database !== 'undefined') ? database : [];
-            const searchInputEl = document.getElementById('searchInput') || document.querySelector('input[type="text"]');
-            const rawQuery = searchInputEl ? searchInputEl.value.toLowerCase().trim() : '';
+    const rawQuery = searchInput.value.toLowerCase().trim();
+    const checkUniverse = (r) => selectedUniverses.length === 0 || selectedUniverses.includes(r.universe);
+    
+    const checkCategory = (r) => {
+        if (activeCategory === 'FAVORITES') {
+            return favorites.includes(r.id || r.title);
+        }
+        return activeCategory === 'ALL' || r.category === activeCategory;
+    };
 
-            const checkUniverse = (r) => selectedUniverses.length === 0 || selectedUniverses.includes(r.universe);
-            
-            // Проверка категории или вкладки Избранное (поддерживаем ID или r.id)
-            const checkCategory = (r) => {
-                if (activeCategory === 'FAVORITES') {
-                    const recipeId = r.id || r.title;
-                    return favorites.includes(recipeId);
-                }
-                return activeCategory === 'ALL' || r.category === activeCategory;
-            };
+    if (!rawQuery) {
+        return database.filter(r => checkUniverse(r) && checkCategory(r));
+    }
 
-            if (!rawQuery) {
-                return list.filter(r => checkUniverse(r) && checkCategory(r));
-            }
+    // Нормализация для курицы / курятины (оставляем нашу защиту от кукурузы)
+    const normalizedQuery = rawQuery
+        .replace(/куриц[аеуыяої]?/g, 'кури')
+        .replace(/курин[оеаыяумі]?/g, 'кури');
 
-            // Нормализация запроса для птицы / курятины
-            const normalizedQuery = rawQuery
-                .replace(/куриц[аеуыяої]?/g, 'кури')
-                .replace(/курин[оеаыяумі]?/g, 'кури');
+    const queryWords = normalizedQuery.split(/\s+/).filter(Boolean);
 
-            const queryWords = normalizedQuery.split(/\s+/).filter(Boolean);
+    return database.filter(r => {
+        const matchesUniverse = checkUniverse(r);
+        const matchesCategory = checkCategory(r);
+        
+        const ingredientsText = Array.isArray(r.ingredients) ? r.ingredients.join(' ') : (r.ingredients || '');
+        const titleText = r.title || r.name || '';
+        const universeText = r.universe || '';
+        
+        // Собираем весь текст рецепта и приводим к нижнему регистру + нормализуем курицу
+        const fullRecipeText = `${titleText} ${universeText} ${ingredientsText}`
+            .toLowerCase()
+            .replace(/куриц[аеуыяої]?/g, 'кури')
+            .replace(/курин[оеаыяумі]?/g, 'кури');
 
-            return list.filter(r => {
-                const matchesUniverse = checkUniverse(r);
-                const matchesCategory = checkCategory(r);
-                
-                const ingredientsText = Array.isArray(r.ingredients) ? r.ingredients.join(' ') : (r.ingredients || '');
-                const titleText = r.title || r.name || '';
-                const universeText = r.universe || '';
-                
-                const fullRecipeText = `${titleText} ${universeText} ${ingredientsText}`
-                    .toLowerCase()
-                    .replace(/куриц[аеуыяої]?/g, 'кури')
-                    .replace(/курин[оеаыяумі]?/g, 'кури');
-                
-                const matchesSearch = queryWords.every(word => fullRecipeText.includes(word));
+        // Разбиваем весь текст рецепта на отдельные слова
+        const recipeWords = fullRecipeText.split(/\s+/).filter(Boolean);
+        
+        // 🔥 КАЖДОЕ слово из поискового запроса должно совпадать С НАЧАЛОМ хотя бы одного слова в рецепте
+        const matchesSearch = queryWords.every(queryWord => {
+            return recipeWords.some(recipeWord => recipeWord.startsWith(queryWord));
+        });
 
-                return matchesUniverse && matchesCategory && matchesSearch;
-            });
+        return matchesUniverse && matchesCategory && matchesSearch;
+    });
         }
 
         function renderRecipes() {
