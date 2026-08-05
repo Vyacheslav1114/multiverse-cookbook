@@ -26,14 +26,19 @@
             <span id="recipeCounter" class="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-full font-mono">0 рецептов</span>
         </header>
 
-        <!-- Поиск и фильтр -->
-        <div class="p-4 bg-zinc-900 border-b border-zinc-800/80 space-y-3 z-10">
+        <!-- Поиск и фильтры -->
+        <div class="p-4 bg-zinc-900 border-b border-zinc-800/80 space-y-2.5 z-10">
             <div class="relative">
                 <input type="text" id="searchInput" placeholder="Название, ингредиент или миры..." 
                     class="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition">
                 <svg class="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
             </div>
-            <div id="universeFilter" class="flex gap-2 overflow-x-auto no-scrollbar pb-1 text-xs"></div>
+            
+            <!-- Фильтр по вселенным -->
+            <div id="universeFilter" class="flex gap-2 overflow-x-auto no-scrollbar pb-0.5 text-xs"></div>
+
+            <!-- Фильтр по категориям (+ Избранное) -->
+            <div id="categoryFilter" class="flex gap-1.5 overflow-x-auto no-scrollbar pt-1.5 border-t border-zinc-800/60 text-xs"></div>
         </div>
 
         <!-- Список рецептов -->
@@ -42,14 +47,22 @@
 
     <!-- Модалка -->
     <div id="recipeModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div class="bg-zinc-900 w-full max-w-md sm:rounded-3xl rounded-t-3xl border border-zinc-800 max-h-[90vh] flex flex-col overflow-hidden">
+        <div class="bg-zinc-900 w-full max-w-md sm:rounded-3xl rounded-t-3xl border border-zinc-800 max-h-[90vh] flex flex-col overflow-hidden relative">
             
             <div class="relative h-48 w-full bg-zinc-950 shrink-0">
                 <img id="modalImage" class="w-full h-full object-cover" src="" alt="">
                 <div class="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-black/40"></div>
-                <button onclick="closeModal()" class="absolute top-3 right-3 text-zinc-300 hover:text-white p-2 rounded-full bg-black/60 backdrop-blur border border-white/10">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
+                
+                <!-- Кнопки в углу модалки (Избранное и Закрыть) -->
+                <div class="absolute top-3 right-3 flex items-center gap-2">
+                    <button id="modalFavBtn" class="p-2 rounded-full bg-black/60 backdrop-blur border border-white/10 text-zinc-300 hover:text-white transition">
+                        <svg id="modalFavIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                    </button>
+                    <button onclick="closeModal()" class="text-zinc-300 hover:text-white p-2 rounded-full bg-black/60 backdrop-blur border border-white/10">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
                 <div class="absolute bottom-3 left-4 right-4">
                     <span id="modalUniverseTag" class="text-[10px] font-mono uppercase px-2 py-0.5 rounded border"></span>
                     <h2 id="modalTitle" class="font-title text-xl text-white mt-1 drop-shadow"></h2>
@@ -85,12 +98,19 @@
 
     <script>
         let database = [];
-        let activeUniverse = 'ALL';
+        let selectedUniverses = []; 
+        let activeCategory = 'ALL';
+        
+        // 🎯 Хранилище избранных рецептов (загружаем из localStorage)
+        let favorites = JSON.parse(localStorage.getItem('cookbook_favorites') || '[]');
+        let currentModalRecipeId = null;
 
         const recipeList = document.getElementById('recipeList');
         const searchInput = document.getElementById('searchInput');
         const universeFilter = document.getElementById('universeFilter');
+        const categoryFilter = document.getElementById('categoryFilter');
         const recipeModal = document.getElementById('recipeModal');
+        const modalFavBtn = document.getElementById('modalFavBtn');
 
         // Загружаем рецепты из JSON
         async function loadRecipes() {
@@ -98,34 +118,120 @@
                 const res = await fetch('recipes.json');
                 database = await res.json();
                 renderUniverseFilters();
+                renderCategoryFilters();
                 renderRecipes();
             } catch (err) {
                 recipeList.innerHTML = `<div class="text-center py-12 text-red-400 text-sm">Ошибка загрузки recipes.json.<br>Запусти проект через Live Server!</div>`;
             }
         }
 
-        function renderUniverseFilters() {
-            const universes = ['ALL', ...new Set(database.map(r => r.universe))];
-            universeFilter.innerHTML = universes.map(u => `
-                <button onclick="setUniverse('${u}')" 
-                    class="px-3 py-1.5 rounded-xl whitespace-nowrap transition border ${
-                        u === activeUniverse 
-                        ? 'bg-amber-500 text-black font-semibold border-amber-500' 
-                        : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
-                    }">
-                    ${u === 'ALL' ? 'Все миры' : u}
-                </button>
-            `).join('');
+        // Переключение избранного по ID рецепта
+        function toggleFavorite(id, event) {
+            if (event) event.stopPropagation(); // чтобы не открывалась модалка при клике на сердечко карточки
+            
+            if (favorites.includes(id)) {
+                favorites = favorites.filter(favId => favId !== id);
+            } else {
+                favorites.push(id);
+            }
+            
+            // Сохраняем в память браузера
+            localStorage.setItem('cookbook_favorites', JSON.stringify(favorites));
+            
+            renderCategoryFilters();
+            renderRecipes();
+            
+            if (currentModalRecipeId === id) {
+                updateModalFavBtn(id);
+            }
         }
 
+        function renderUniverseFilters() {
+            const universes = ['ALL', ...new Set(database.map(r => r.universe))];
+            universeFilter.innerHTML = universes.map(u => {
+                const isAll = u === 'ALL';
+                const isActive = isAll ? selectedUniverses.length === 0 : selectedUniverses.includes(u);
+
+                return `
+                    <button onclick="setUniverse('${u}')" 
+                        class="px-3 py-1 rounded-xl whitespace-nowrap transition border ${
+                            isActive 
+                            ? 'bg-amber-500 text-black font-semibold border-amber-500' 
+                            : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
+                        }">
+                        ${isAll ? 'Все миры' : u}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        // Отрисовка фильтров категорий (+ кнопка Избранное)
+        function renderCategoryFilters() {
+            const categories = ['ALL', 'FAVORITES', ...new Set(database.map(r => r.category).filter(Boolean))];
+            categoryFilter.innerHTML = categories.map(cat => {
+                const isAll = cat === 'ALL';
+                const isFav = cat === 'FAVORITES';
+                const isActive = cat === activeCategory;
+
+                let label = isAll ? 'Все блюда' : (isFav ? `❤️ Избранное (${favorites.length})` : cat);
+
+                return `
+                    <button onclick="setCategory('${cat}')" 
+                        class="px-2.5 py-1 rounded-xl whitespace-nowrap transition border text-[11px] ${
+                            isActive 
+                            ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 font-medium'
+                            : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
+                        }">
+                        ${label}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        // Фильтрация рецептов
         function getFilteredRecipes() {
-            const query = searchInput.value.toLowerCase().trim();
-            return database.filter(r => {
-                const matchesUniverse = activeUniverse === 'ALL' || r.universe === activeUniverse;
-                const matchesSearch = r.title.toLowerCase().includes(query) || 
-                                      r.ingredients.some(i => i.toLowerCase().includes(query)) ||
-                                      r.universe.toLowerCase().includes(query);
-                return matchesUniverse && matchesSearch;
+            const list = (typeof database !== 'undefined') ? database : [];
+            const searchInputEl = document.getElementById('searchInput') || document.querySelector('input[type="text"]');
+            const rawQuery = searchInputEl ? searchInputEl.value.toLowerCase().trim() : '';
+
+            const checkUniverse = (r) => selectedUniverses.length === 0 || selectedUniverses.includes(r.universe);
+            
+            // Проверка категории или вкладки Избранное (поддерживаем ID или r.id)
+            const checkCategory = (r) => {
+                if (activeCategory === 'FAVORITES') {
+                    const recipeId = r.id || r.title;
+                    return favorites.includes(recipeId);
+                }
+                return activeCategory === 'ALL' || r.category === activeCategory;
+            };
+
+            if (!rawQuery) {
+                return list.filter(r => checkUniverse(r) && checkCategory(r));
+            }
+
+            // Нормализация запроса для птицы / курятины
+            const normalizedQuery = rawQuery
+                .replace(/куриц[аеуыяої]?/g, 'кури')
+                .replace(/курин[оеаыяумі]?/g, 'кури');
+
+            const queryWords = normalizedQuery.split(/\s+/).filter(Boolean);
+
+            return list.filter(r => {
+                const matchesUniverse = checkUniverse(r);
+                const matchesCategory = checkCategory(r);
+                
+                const ingredientsText = Array.isArray(r.ingredients) ? r.ingredients.join(' ') : (r.ingredients || '');
+                const titleText = r.title || r.name || '';
+                const universeText = r.universe || '';
+                
+                const fullRecipeText = `${titleText} ${universeText} ${ingredientsText}`
+                    .toLowerCase()
+                    .replace(/куриц[аеуыяої]?/g, 'кури')
+                    .replace(/курин[оеаыяумі]?/g, 'кури');
+                
+                const matchesSearch = queryWords.every(word => fullRecipeText.includes(word));
+
+                return matchesUniverse && matchesCategory && matchesSearch;
             });
         }
 
@@ -135,19 +241,30 @@
             
             recipeList.innerHTML = '';
             if (items.length === 0) {
-                recipeList.innerHTML = `<div class="text-center py-12 text-zinc-500 text-sm">Рецепты не найдены...</div>`;
+                const emptyMsg = activeCategory === 'FAVORITES' 
+                    ? 'У вас пока нет избранных рецептов...<br>Нажмите ❤️ на карточке, чтобы добавить!' 
+                    : 'Рецепты не найдены...';
+                recipeList.innerHTML = `<div class="text-center py-12 text-zinc-500 text-sm">${emptyMsg}</div>`;
                 return;
             }
 
             items.forEach(recipe => {
+                const recipeId = recipe.id || recipe.title;
+                const isFav = favorites.includes(recipeId);
+
                 const card = document.createElement('div');
-                card.className = "bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl overflow-hidden cursor-pointer transition group shadow-md";
+                card.className = "bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl overflow-hidden cursor-pointer transition group shadow-md relative";
                 card.onclick = () => openModal(recipe);
                 card.innerHTML = `
                     <div class="h-36 w-full relative overflow-hidden bg-zinc-950">
                         <img src="${recipe.image}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="${recipe.title}">
                         <div class="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent"></div>
                         <span class="absolute top-3 left-3 text-[10px] font-mono px-2 py-0.5 rounded border backdrop-blur bg-black/40 ${recipe.universeBadge}">${recipe.universe}</span>
+                        
+                        <!-- Сердечко на карточке -->
+                        <button onclick="toggleFavorite('${recipeId}', event)" class="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 backdrop-blur border border-white/10 ${isFav ? 'text-red-500' : 'text-zinc-400 hover:text-white'} transition">
+                            <svg class="w-4 h-4" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                        </button>
                     </div>
                     <div class="p-3.5 space-y-1">
                         <h3 class="font-medium text-zinc-100 group-hover:text-amber-400 transition text-sm">${recipe.title}</h3>
@@ -162,12 +279,40 @@
         }
 
         function setUniverse(u) {
-            activeUniverse = u;
+            if (u === 'ALL') {
+                selectedUniverses = []; 
+            } else {
+                if (selectedUniverses.includes(u)) {
+                    selectedUniverses = selectedUniverses.filter(item => item !== u);
+                } else {
+                    selectedUniverses.push(u);
+                }
+            }
             renderUniverseFilters();
             renderRecipes();
         }
 
+        function setCategory(cat) {
+            if (activeCategory === cat) {
+                activeCategory = 'ALL';
+            } else {
+                activeCategory = cat;
+            }
+            renderCategoryFilters();
+            renderRecipes();
+        }
+
+        function updateModalFavBtn(recipeId) {
+            const isFav = favorites.includes(recipeId);
+            modalFavBtn.onclick = () => toggleFavorite(recipeId);
+            modalFavBtn.className = `p-2 rounded-full backdrop-blur border border-white/10 transition ${isFav ? 'bg-red-500/20 text-red-500 border-red-500/30' : 'bg-black/60 text-zinc-300 hover:text-white'}`;
+            modalFavBtn.querySelector('svg').setAttribute('fill', isFav ? 'currentColor' : 'none');
+        }
+
         function openModal(recipe) {
+            const recipeId = recipe.id || recipe.title;
+            currentModalRecipeId = recipeId;
+
             document.getElementById('modalImage').src = recipe.image;
             document.getElementById('modalTitle').innerText = recipe.title;
             document.getElementById('modalUniverseTag').innerText = recipe.universe;
@@ -175,6 +320,8 @@
             document.getElementById('modalCanon').innerText = recipe.canon;
             document.getElementById('modalTime').innerText = recipe.time;
             document.getElementById('modalDifficulty').innerText = recipe.difficulty;
+
+            updateModalFavBtn(recipeId);
 
             document.getElementById('modalIngredients').innerHTML = recipe.ingredients.map(ing => `
                 <li onclick="this.classList.toggle('line-through'); this.classList.toggle('text-zinc-600')" 
@@ -196,6 +343,7 @@
 
         function closeModal() {
             recipeModal.classList.add('hidden');
+            currentModalRecipeId = null;
         }
 
         searchInput.addEventListener('input', renderRecipes);
