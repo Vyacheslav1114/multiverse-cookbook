@@ -35,10 +35,10 @@
             </div>
             
             <!-- Фильтр по вселенным -->
-            <div id="universeFilter" class="flex gap-2 overflow-x-auto no-scrollbar pb-0.5 text-xs"></div>
+            <div id="universeFilter" class="flex gap-2 overflow-x-auto no-scrollbar items-center text-xs h-9"></div>
 
             <!-- Фильтр по категориям (+ Избранное) -->
-            <div id="categoryFilter" class="flex gap-1.5 overflow-x-auto no-scrollbar pt-1.5 border-t border-zinc-800/60 text-xs"></div>
+            <div id="categoryFilter" class="flex gap-1.5 overflow-x-auto no-scrollbar items-center border-t border-zinc-800/60 pt-2 text-xs h-9"></div>
         </div>
 
         <!-- Список рецептов -->
@@ -53,7 +53,6 @@
                 <img id="modalImage" class="w-full h-full object-cover" src="" alt="">
                 <div class="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-black/40"></div>
                 
-                <!-- Кнопки в углу модалки (Избранное и Закрыть) -->
                 <div class="absolute top-3 right-3 flex items-center gap-2">
                     <button id="modalFavBtn" class="p-2 rounded-full bg-black/60 backdrop-blur border border-white/10 text-zinc-300 hover:text-white transition">
                         <svg id="modalFavIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
@@ -101,7 +100,6 @@
         let selectedUniverses = []; 
         let activeCategory = 'ALL';
         
-        // 🎯 Хранилище избранных рецептов (загружаем из localStorage)
         let favorites = JSON.parse(localStorage.getItem('cookbook_favorites') || '[]');
         let currentModalRecipeId = null;
 
@@ -112,7 +110,6 @@
         const recipeModal = document.getElementById('recipeModal');
         const modalFavBtn = document.getElementById('modalFavBtn');
 
-        // Загружаем рецепты из JSON
         async function loadRecipes() {
             try {
                 const res = await fetch('recipes.json');
@@ -125,9 +122,8 @@
             }
         }
 
-        // Переключение избранного по ID рецепта
         function toggleFavorite(id, event) {
-            if (event) event.stopPropagation(); // чтобы не открывалась модалка при клике на сердечко карточки
+            if (event) event.stopPropagation();
             
             if (favorites.includes(id)) {
                 favorites = favorites.filter(favId => favId !== id);
@@ -135,7 +131,6 @@
                 favorites.push(id);
             }
             
-            // Сохраняем в память браузера
             localStorage.setItem('cookbook_favorites', JSON.stringify(favorites));
             
             renderCategoryFilters();
@@ -148,24 +143,39 @@
 
         function renderUniverseFilters() {
             const universes = ['ALL', ...new Set(database.map(r => r.universe))];
+            
             universeFilter.innerHTML = universes.map(u => {
                 const isAll = u === 'ALL';
                 const isActive = isAll ? selectedUniverses.length === 0 : selectedUniverses.includes(u);
 
+                let btnClass = '';
+                if (isAll) {
+                    btnClass = isActive 
+                        ? 'bg-amber-500 text-black font-semibold border-amber-500' 
+                        : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700';
+                } else {
+                    // Берем точный стиль (universeBadge) из первого попавшегося рецепта этой вселенной
+                    const sampleRecipe = database.find(r => r.universe === u);
+                    const badgeStyle = sampleRecipe ? sampleRecipe.universeBadge : 'bg-zinc-800 text-zinc-300 border-zinc-700';
+
+                    if (isActive) {
+                        // Активная кнопка берет оригинальный стиль карточки + жирный шрифт
+                        btnClass = `${badgeStyle} font-bold shadow-md`;
+                    } else {
+                        // Неактивная — приглушенная темная
+                        btnClass = 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700';
+                    }
+                }
+
                 return `
                     <button onclick="setUniverse('${u}')" 
-                        class="px-3 py-1 rounded-xl whitespace-nowrap transition border ${
-                            isActive 
-                            ? 'bg-amber-500 text-black font-semibold border-amber-500' 
-                            : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
-                        }">
+                        class="px-3 py-1 rounded-xl whitespace-nowrap transition border text-xs ${btnClass}">
                         ${isAll ? 'Все миры' : u}
                     </button>
                 `;
             }).join('');
         }
 
-        // Отрисовка фильтров категорий (+ кнопка Избранное)
         function renderCategoryFilters() {
             const categories = ['ALL', 'FAVORITES', ...new Set(database.map(r => r.category).filter(Boolean))];
             categoryFilter.innerHTML = categories.map(cat => {
@@ -179,7 +189,7 @@
                     <button onclick="setCategory('${cat}')" 
                         class="px-2.5 py-1 rounded-xl whitespace-nowrap transition border text-[11px] ${
                             isActive 
-                            ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 font-medium'
+                            ? 'bg-amber-500 text-black font-semibold border-amber-500'
                             : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
                         }">
                         ${label}
@@ -188,53 +198,48 @@
             }).join('');
         }
 
-        // Фильтрация рецептов
         function getFilteredRecipes() {
-    const rawQuery = searchInput.value.toLowerCase().trim();
-    const checkUniverse = (r) => selectedUniverses.length === 0 || selectedUniverses.includes(r.universe);
-    
-    const checkCategory = (r) => {
-        if (activeCategory === 'FAVORITES') {
-            return favorites.includes(r.id || r.title);
-        }
-        return activeCategory === 'ALL' || r.category === activeCategory;
-    };
+            const rawQuery = searchInput.value.toLowerCase().trim();
+            const checkUniverse = (r) => selectedUniverses.length === 0 || selectedUniverses.includes(r.universe);
+            
+            const checkCategory = (r) => {
+                if (activeCategory === 'FAVORITES') {
+                    return favorites.includes(r.id || r.title);
+                }
+                return activeCategory === 'ALL' || r.category === activeCategory;
+            };
 
-    if (!rawQuery) {
-        return database.filter(r => checkUniverse(r) && checkCategory(r));
-    }
+            if (!rawQuery) {
+                return database.filter(r => checkUniverse(r) && checkCategory(r));
+            }
 
-    // Нормализация для курицы / курятины (оставляем нашу защиту от кукурузы)
-    const normalizedQuery = rawQuery
-        .replace(/куриц[аеуыяої]?/g, 'кури')
-        .replace(/курин[оеаыяумі]?/g, 'кури');
+            const normalizedQuery = rawQuery
+                .replace(/куриц[аеуыяої]?/g, 'кури')
+                .replace(/курин[оеаыяумі]?/g, 'кури');
 
-    const queryWords = normalizedQuery.split(/\s+/).filter(Boolean);
+            const queryWords = normalizedQuery.split(/\s+/).filter(Boolean);
 
-    return database.filter(r => {
-        const matchesUniverse = checkUniverse(r);
-        const matchesCategory = checkCategory(r);
-        
-        const ingredientsText = Array.isArray(r.ingredients) ? r.ingredients.join(' ') : (r.ingredients || '');
-        const titleText = r.title || r.name || '';
-        const universeText = r.universe || '';
-        
-        // Собираем весь текст рецепта и приводим к нижнему регистру + нормализуем курицу
-        const fullRecipeText = `${titleText} ${universeText} ${ingredientsText}`
-            .toLowerCase()
-            .replace(/куриц[аеуыяої]?/g, 'кури')
-            .replace(/курин[оеаыяумі]?/g, 'кури');
+            return database.filter(r => {
+                const matchesUniverse = checkUniverse(r);
+                const matchesCategory = checkCategory(r);
+                
+                const ingredientsText = Array.isArray(r.ingredients) ? r.ingredients.join(' ') : (r.ingredients || '');
+                const titleText = r.title || r.name || '';
+                const universeText = r.universe || '';
+                
+                const fullRecipeText = `${titleText} ${universeText} ${ingredientsText}`
+                    .toLowerCase()
+                    .replace(/куриц[аеуыяої]?/g, 'кури')
+                    .replace(/курин[оеаыяумі]?/g, 'кури');
 
-        // Разбиваем весь текст рецепта на отдельные слова
-        const recipeWords = fullRecipeText.split(/\s+/).filter(Boolean);
-        
-        // 🔥 КАЖДОЕ слово из поискового запроса должно совпадать С НАЧАЛОМ хотя бы одного слова в рецепте
-        const matchesSearch = queryWords.every(queryWord => {
-            return recipeWords.some(recipeWord => recipeWord.startsWith(queryWord));
-        });
+                const recipeWords = fullRecipeText.split(/\s+/).filter(Boolean);
+                
+                const matchesSearch = queryWords.every(queryWord => {
+                    return recipeWords.some(recipeWord => recipeWord.startsWith(queryWord));
+                });
 
-        return matchesUniverse && matchesCategory && matchesSearch;
-    });
+                return matchesUniverse && matchesCategory && matchesSearch;
+            });
         }
 
         function renderRecipes() {
@@ -263,7 +268,6 @@
                         <div class="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent"></div>
                         <span class="absolute top-3 left-3 text-[10px] font-mono px-2 py-0.5 rounded border backdrop-blur bg-black/40 ${recipe.universeBadge}">${recipe.universe}</span>
                         
-                        <!-- Сердечко на карточке -->
                         <button onclick="toggleFavorite('${recipeId}', event)" class="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 backdrop-blur border border-white/10 ${isFav ? 'text-red-500' : 'text-zinc-400 hover:text-white'} transition">
                             <svg class="w-4 h-4" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
                         </button>
