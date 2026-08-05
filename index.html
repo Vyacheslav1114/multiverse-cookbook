@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Multiverse Cookbook</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-title { font-family: 'Cinzel', serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen flex justify-center items-center p-0 sm:p-4">
+
+    <div id="app" class="w-full max-w-md bg-zinc-900 sm:rounded-3xl shadow-2xl overflow-hidden border border-zinc-800 flex flex-col h-screen sm:h-[844px] relative">
+        
+        <!-- Шапка -->
+        <header class="bg-zinc-900/90 backdrop-blur border-b border-zinc-800 p-4 sticky top-0 z-20 flex items-center justify-between">
+            <div>
+                <h1 class="font-title text-lg tracking-wider text-amber-500">MULTIVERSE COOKBOOK</h1>
+                <p class="text-[11px] text-zinc-400">Полная энциклопедия гик-рецептов</p>
+            </div>
+            <span id="recipeCounter" class="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-full font-mono">0 рецептов</span>
+        </header>
+
+        <!-- Поиск и фильтр -->
+        <div class="p-4 bg-zinc-900 border-b border-zinc-800/80 space-y-3 z-10">
+            <div class="relative">
+                <input type="text" id="searchInput" placeholder="Название, ингредиент или миры..." 
+                    class="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition">
+                <svg class="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+            <div id="universeFilter" class="flex gap-2 overflow-x-auto no-scrollbar pb-1 text-xs"></div>
+        </div>
+
+        <!-- Список рецептов -->
+        <main class="flex-1 overflow-y-auto p-4 space-y-4" id="recipeList"></main>
+    </div>
+
+    <!-- Модалка -->
+    <div id="recipeModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-zinc-900 w-full max-w-md sm:rounded-3xl rounded-t-3xl border border-zinc-800 max-h-[90vh] flex flex-col overflow-hidden">
+            
+            <div class="relative h-48 w-full bg-zinc-950 shrink-0">
+                <img id="modalImage" class="w-full h-full object-cover" src="" alt="">
+                <div class="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-black/40"></div>
+                <button onclick="closeModal()" class="absolute top-3 right-3 text-zinc-300 hover:text-white p-2 rounded-full bg-black/60 backdrop-blur border border-white/10">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+                <div class="absolute bottom-3 left-4 right-4">
+                    <span id="modalUniverseTag" class="text-[10px] font-mono uppercase px-2 py-0.5 rounded border"></span>
+                    <h2 id="modalTitle" class="font-title text-xl text-white mt-1 drop-shadow"></h2>
+                </div>
+            </div>
+
+            <div class="p-5 overflow-y-auto space-y-5 text-sm text-zinc-300">
+                <p id="modalCanon" class="text-xs italic text-zinc-400 bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/60"></p>
+
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 text-center">
+                        <span class="text-zinc-500 block">Время</span>
+                        <span id="modalTime" class="font-semibold text-zinc-200"></span>
+                    </div>
+                    <div class="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 text-center">
+                        <span class="text-zinc-500 block">Сложность</span>
+                        <span id="modalDifficulty" class="font-semibold text-zinc-200"></span>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-amber-500 uppercase tracking-wider text-xs mb-2.5">Ингредиенты</h3>
+                    <ul id="modalIngredients" class="space-y-1.5 text-xs"></ul>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-amber-500 uppercase tracking-wider text-xs mb-2.5">Подробный рецепт</h3>
+                    <ol id="modalSteps" class="space-y-3 text-xs"></ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let database = [];
+        let activeUniverse = 'ALL';
+
+        const recipeList = document.getElementById('recipeList');
+        const searchInput = document.getElementById('searchInput');
+        const universeFilter = document.getElementById('universeFilter');
+        const recipeModal = document.getElementById('recipeModal');
+
+        // Загружаем рецепты из JSON
+        async function loadRecipes() {
+            try {
+                const res = await fetch('recipes.json');
+                database = await res.json();
+                renderUniverseFilters();
+                renderRecipes();
+            } catch (err) {
+                recipeList.innerHTML = `<div class="text-center py-12 text-red-400 text-sm">Ошибка загрузки recipes.json.<br>Запусти проект через Live Server!</div>`;
+            }
+        }
+
+        function renderUniverseFilters() {
+            const universes = ['ALL', ...new Set(database.map(r => r.universe))];
+            universeFilter.innerHTML = universes.map(u => `
+                <button onclick="setUniverse('${u}')" 
+                    class="px-3 py-1.5 rounded-xl whitespace-nowrap transition border ${
+                        u === activeUniverse 
+                        ? 'bg-amber-500 text-black font-semibold border-amber-500' 
+                        : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
+                    }">
+                    ${u === 'ALL' ? 'Все миры' : u}
+                </button>
+            `).join('');
+        }
+
+        function getFilteredRecipes() {
+            const query = searchInput.value.toLowerCase().trim();
+            return database.filter(r => {
+                const matchesUniverse = activeUniverse === 'ALL' || r.universe === activeUniverse;
+                const matchesSearch = r.title.toLowerCase().includes(query) || 
+                                      r.ingredients.some(i => i.toLowerCase().includes(query)) ||
+                                      r.universe.toLowerCase().includes(query);
+                return matchesUniverse && matchesSearch;
+            });
+        }
+
+        function renderRecipes() {
+            const items = getFilteredRecipes();
+            document.getElementById('recipeCounter').innerText = `${items.length} рецептов`;
+            
+            recipeList.innerHTML = '';
+            if (items.length === 0) {
+                recipeList.innerHTML = `<div class="text-center py-12 text-zinc-500 text-sm">Рецепты не найдены...</div>`;
+                return;
+            }
+
+            items.forEach(recipe => {
+                const card = document.createElement('div');
+                card.className = "bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-2xl overflow-hidden cursor-pointer transition group shadow-md";
+                card.onclick = () => openModal(recipe);
+                card.innerHTML = `
+                    <div class="h-36 w-full relative overflow-hidden bg-zinc-950">
+                        <img src="${recipe.image}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="${recipe.title}">
+                        <div class="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent"></div>
+                        <span class="absolute top-3 left-3 text-[10px] font-mono px-2 py-0.5 rounded border backdrop-blur bg-black/40 ${recipe.universeBadge}">${recipe.universe}</span>
+                    </div>
+                    <div class="p-3.5 space-y-1">
+                        <h3 class="font-medium text-zinc-100 group-hover:text-amber-400 transition text-sm">${recipe.title}</h3>
+                        <div class="flex justify-between text-[11px] text-zinc-400 pt-1">
+                            <span>⏱ ${recipe.time}</span>
+                            <span>🔥 ${recipe.difficulty}</span>
+                        </div>
+                    </div>
+                `;
+                recipeList.appendChild(card);
+            });
+        }
+
+        function setUniverse(u) {
+            activeUniverse = u;
+            renderUniverseFilters();
+            renderRecipes();
+        }
+
+        function openModal(recipe) {
+            document.getElementById('modalImage').src = recipe.image;
+            document.getElementById('modalTitle').innerText = recipe.title;
+            document.getElementById('modalUniverseTag').innerText = recipe.universe;
+            document.getElementById('modalUniverseTag').className = `text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${recipe.universeBadge}`;
+            document.getElementById('modalCanon').innerText = recipe.canon;
+            document.getElementById('modalTime').innerText = recipe.time;
+            document.getElementById('modalDifficulty').innerText = recipe.difficulty;
+
+            document.getElementById('modalIngredients').innerHTML = recipe.ingredients.map(ing => `
+                <li onclick="this.classList.toggle('line-through'); this.classList.toggle('text-zinc-600')" 
+                    class="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800/80 cursor-pointer transition flex items-center justify-between">
+                    <span>${ing}</span>
+                    <span class="text-zinc-700 text-[10px]">✓</span>
+                </li>
+            `).join('');
+
+            document.getElementById('modalSteps').innerHTML = recipe.steps.map((step, idx) => `
+                <li class="flex gap-3 bg-zinc-950/60 p-3 rounded-xl border border-zinc-800/60">
+                    <span class="font-mono text-amber-500 font-bold text-xs">${idx + 1}.</span>
+                    <span class="text-zinc-300 leading-relaxed">${step}</span>
+                </li>
+            `).join('');
+
+            recipeModal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            recipeModal.classList.add('hidden');
+        }
+
+        searchInput.addEventListener('input', renderRecipes);
+        recipeModal.addEventListener('click', (e) => { if (e.target === recipeModal) closeModal(); });
+
+        loadRecipes();
+    </script>
+</body>
+</html>
