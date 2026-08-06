@@ -18,12 +18,20 @@
     <div id="app" class="w-full max-w-md bg-zinc-900 sm:rounded-3xl shadow-2xl overflow-hidden border border-zinc-800 flex flex-col h-screen sm:h-[844px] relative">
         
         <!-- Шапка -->
+        <!-- Шапка -->
         <header class="bg-zinc-900/90 backdrop-blur border-b border-zinc-800 p-4 sticky top-0 z-20 flex items-center justify-between">
             <div>
                 <h1 class="font-title text-lg tracking-wider text-amber-500">MULTIVERSE COOKBOOK</h1>
                 <p class="text-[11px] text-zinc-400">Полная энциклопедия гик-рецептов</p>
             </div>
-            <span id="recipeCounter" class="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-full font-mono">0 рецептов</span>
+            <div class="flex items-center gap-2">
+                <!-- 🎲 Кнопка случайного рецепта -->
+                <button onclick="openRandomRecipe()" title="Случайный рецепт" class="text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-1 rounded-full transition flex items-center gap-1 cursor-pointer">
+    <span>🎲</span>
+    <span class="hidden sm:inline">Случайный</span>
+</button>
+                <span id="recipeCounter" class="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-full font-mono">0 рецептов</span>
+            </div>
         </header>
 
         <!-- Поиск и фильтры -->
@@ -189,7 +197,7 @@
                     <button onclick="setCategory('${cat}')" 
                         class="px-2.5 py-1 rounded-xl whitespace-nowrap transition border text-[11px] ${
                             isActive 
-                            ? 'bg-amber-500 text-black font-semibold border-amber-500'
+                            ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 font-medium'
                             : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700'
                         }">
                         ${label}
@@ -345,6 +353,8 @@
             `).join('');
 
             recipeModal.classList.remove('hidden');
+
+            recipeModal.querySelector('.overflow-y-auto').scrollTop = 0;
         }
 
         function closeModal() {
@@ -356,6 +366,25 @@
         recipeModal.addEventListener('click', (e) => { if (e.target === recipeModal) closeModal(); });
 
         loadRecipes();
+
+        // Функция рандомного выбора рецепта
+        function openRandomRecipe() {
+            // Берем текущие отфильтрованные рецепты (если включен поиск или фильтр, 
+            // рандом выпадет среди них; если нет — среди всей базы)
+            const currentItems = getFilteredRecipes();
+            
+            if (currentItems.length === 0) {
+                alert('Нет доступных рецептов для выбора!');
+                return;
+            }
+
+            // Выбираем случайный элемент из массива
+            const randomIndex = Math.floor(Math.random() * currentItems.length);
+            const randomRecipe = currentItems[randomIndex];
+
+            // Открываем его модальное окно
+            openModal(randomRecipe);
+        }
     </script>
 </body>
 </html>
