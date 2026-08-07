@@ -272,7 +272,7 @@
                 card.onclick = () => openModal(recipe);
                 card.innerHTML = `
                     <div class="h-36 w-full relative overflow-hidden bg-zinc-950">
-                        <img src="${recipe.image}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="${recipe.title}">
+                        <img src="${recipe.image}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="${recipe.title}">
                         <div class="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent"></div>
                         <span class="absolute top-3 left-3 text-[10px] font-mono px-2 py-0.5 rounded border backdrop-blur bg-black/40 ${recipe.universeBadge}">${recipe.universe}</span>
                         
