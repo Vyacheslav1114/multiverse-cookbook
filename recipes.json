@@ -443,7 +443,7 @@
     "category": "Супы",
     "time": "30 мин",
     "difficulty": "Легко",
-    "image": "dwarven_beer_soup.png",
+    "image": "images/dwarven_beer_soup.png",
     "canon": "Густой согревающий суп по рецептам трактирщиков Стальгорна.",
     "ingredients": [
       "Темный эль или лагер — 330мл",
@@ -473,7 +473,7 @@
     "category": "Закуски",
     "time": "55 мин",
     "difficulty": "Среднее",
-    "image": "images/dragon_liver_pie.png",
+    "image": "images/dragon_liver_pie.PNG",
     "canon": "Изысканный печеночный паштет в хрустящем слоеном тесте.",
     "ingredients": [
       "Куриная или говяжья печень — 500г",
@@ -667,7 +667,7 @@
     "category": "Основные блюда",
     "time": "1 ч 20 мин",
     "difficulty": "Среднее",
-    "image": "images/sam_rabbit_stew.png",
+    "image": "images/sam_rabbit_stew.PNG",
     "canon": "«Картошка! Свари её, разломь, потуши!» — походное рагу Сэма.",
     "ingredients": ["Мясо кролика (или курица) — 700г", "Картофель — 6 шт", "Бульон — 500мл", "Морковь — 1 шт", "Лавровый лист, шалфей"],
     "steps": [
@@ -685,7 +685,7 @@
     "category": "Десерты",
     "time": "50 мин",
     "difficulty": "Среднее",
-    "image": "images/sam_rabbit_stew.png",
+    "image": "images/sam_rabbit_stew.PNG",
     "canon": "Крафтится из тыквы, сахара и куриного яйца.",
     "ingredients": ["Тыквенное пюре — 400г", "Сахар — 100г", "Яйцо — 2 шт", "Песочная основа для пирога — 1 шт"],
     "steps": [
@@ -702,7 +702,7 @@
     "category": "Фастфуд",
     "time": "20 мин",
     "difficulty": "Просто",
-    "image": "images/avengers_shawarma.png",
+    "image": "images/avengers_shawarma.PNG",
     "canon": "Закуска, которую ели Тони Старк и Мстители после битвы за Нью-Йорк.",
     "ingredients": ["Лаваш — 2 шт", "Куриное филе — 300г", "Огурцы, томаты, капуста", "Чесночный соус"],
     "steps": [
@@ -720,7 +720,7 @@
     "category": "Фастфуд",
     "time": "15 мин",
     "difficulty": "Просто",
-    "image": "images/finn_sandwich.png",
+    "image": "images/finn_sandwich.PNG",
     "canon": "Многослойный шедевр кулинарного искусства от Финна Парнишки.",
     "ingredients": ["Хлеб — 2 куска", "Бекон — 3 полоски", "Яйцо — 1 шт", "Сыр, салат, огурец"],
     "steps": [
